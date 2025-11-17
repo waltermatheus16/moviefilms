@@ -1,11 +1,9 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-from movie_recommender import MovieRecommender
+from movie_recommender import RecomendadorPeliculas
 import os
 
-# Configuración de la página
 st.set_page_config(
     page_title="🎬 IA Recomendadora de Películas",
     page_icon="🎬",
@@ -13,10 +11,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS personalizado - Modo oscuro elegante
 st.markdown("""
     <style>
-    /* Header personalizado */
     .main-header {
         font-size: 3rem;
         font-weight: bold;
@@ -27,8 +23,7 @@ st.markdown("""
         margin-bottom: 2rem;
     }
     
-    /* Badge de similitud mejorado */
-    .similarity-badge {
+    .badge-similitud {
         background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
         color: white;
         padding: 0.4rem 1rem;
@@ -40,7 +35,6 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
     }
     
-    /* Cards de recomendaciones con fondo sutil */
     .stContainer > div {
         background-color: rgba(102, 126, 234, 0.08);
         border-radius: 12px;
@@ -55,7 +49,6 @@ st.markdown("""
         transform: translateX(5px);
     }
     
-    /* Botones elegantes */
     .stButton > button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -72,7 +65,6 @@ st.markdown("""
         box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
     }
     
-    /* Métricas destacadas */
     [data-testid="stMetricValue"] {
         font-size: 2.2rem;
         font-weight: 700;
@@ -84,7 +76,6 @@ st.markdown("""
         color: #b0b0b0;
     }
     
-    /* Inputs con estilo */
     .stTextInput > div > div > input {
         border-radius: 8px;
         border: 2px solid rgba(102, 126, 234, 0.3);
@@ -96,7 +87,6 @@ st.markdown("""
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
     }
     
-    /* Separadores elegantes */
     hr {
         border: none;
         height: 2px;
@@ -104,12 +94,10 @@ st.markdown("""
         margin: 2.5rem 0;
     }
     
-    /* Mejorar contraste de texto */
     h1, h2, h3 {
         color: #eaeaea !important;
     }
     
-    /* Expanders mejorados */
     .streamlit-expanderHeader {
         background-color: rgba(102, 126, 234, 0.1);
         border-radius: 8px;
@@ -117,7 +105,6 @@ st.markdown("""
         margin: 0.5rem 0;
     }
     
-    /* Info boxes con mejor estilo */
     .stInfo {
         background-color: rgba(102, 126, 234, 0.15);
         border-left: 4px solid #667eea;
@@ -145,45 +132,40 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 @st.cache_resource
-def load_recommender():
-    """Carga el recomendador (cached para mejor rendimiento)"""
-    csv_path = os.path.join(os.path.dirname(__file__), 'data', 'movies.csv')
-    return MovieRecommender(csv_path)
+def cargar_recomendador():
+    ruta_csv = os.path.join(os.path.dirname(__file__), 'data', 'movies.csv')
+    return RecomendadorPeliculas(ruta_csv)
 
 def main():
-    # Header
     st.markdown('<h1 class="main-header">🎬 IA Recomendadora de Películas</h1>', unsafe_allow_html=True)
     st.markdown("---")
     
-    # Cargar el recomendador
-    recommender = load_recommender()
+    recomendador = cargar_recomendador()
     
-    # Sidebar
     with st.sidebar:
         st.header("🎯 Navegación")
-        page = st.radio(
+        pagina = st.radio(
             "Selecciona una opción:",
             ["🏠 Recomendaciones", "📊 Estadísticas", "🔍 Búsqueda Avanzada", "⚖️ Comparar Películas"]
         )
         st.markdown("---")
         st.info("💡 **Tip**: Escribe el nombre completo o parcial de una película para obtener recomendaciones")
     
-    # Página principal: Recomendaciones
-    if page == "🏠 Recomendaciones":
+    if pagina == "🏠 Recomendaciones":
         st.header("🎯 Sistema de Recomendación Inteligente")
         st.markdown("### Ingresa el nombre de una película y te recomendaremos otras similares")
         
         col1, col2 = st.columns([3, 1])
         
         with col1:
-            movie_input = st.text_input(
+            entrada_pelicula = st.text_input(
                 "🎬 Nombre de la película:",
                 placeholder="Ej: El Padrino, Matrix, Inception...",
-                key="movie_input"
+                key="entrada_pelicula"
             )
         
         with col2:
-            n_recommendations = st.number_input(
+            num_recomendaciones = st.number_input(
                 "Número de recomendaciones:",
                 min_value=1,
                 max_value=10,
@@ -192,33 +174,31 @@ def main():
             )
         
         if st.button("🔍 Buscar Recomendaciones", type="primary", use_container_width=True):
-            if movie_input:
+            if entrada_pelicula:
                 with st.spinner("🤖 Analizando películas y buscando recomendaciones..."):
-                    movie, recommendations = recommender.recommend_movies(movie_input, n_recommendations)
+                    pelicula, recomendaciones = recomendador.recomendar_peliculas(entrada_pelicula, num_recomendaciones)
                     
-                    if movie:
-                        st.success(f"✅ Película encontrada: **{movie['title']}**")
+                    if pelicula:
+                        st.success(f"✅ Película encontrada: **{pelicula['title']}**")
                         
-                        # Mostrar información de la película
                         col1, col2, col3, col4 = st.columns(4)
                         with col1:
-                            st.metric("⭐ Rating", f"{movie['rating']}/10")
+                            st.metric("⭐ Rating", f"{pelicula['rating']}/10")
                         with col2:
-                            st.metric("📅 Año", movie['year'])
+                            st.metric("📅 Año", pelicula['year'])
                         with col3:
-                            st.metric("🎭 Género", movie['genre'].split('/')[0])
+                            st.metric("🎭 Género", pelicula['genre'].split('/')[0])
                         with col4:
-                            st.metric("🎬 Director", movie['director'])
+                            st.metric("🎬 Director", pelicula['director'])
                         
-                        st.markdown(f"**📝 Sinopsis:** {movie['description']}")
-                        st.markdown(f"**👥 Reparto:** {movie['cast']}")
-                        st.markdown(f"**🌍 País:** {movie['country']}")
+                        st.markdown(f"**📝 Sinopsis:** {pelicula['description']}")
+                        st.markdown(f"**👥 Reparto:** {pelicula['cast']}")
+                        st.markdown(f"**🌍 País:** {pelicula['country']}")
                         
                         st.markdown("---")
                         st.subheader("🎯 Películas Recomendadas")
                         
-                        # Mostrar recomendaciones
-                        for i, rec in enumerate(recommendations, 1):
+                        for i, rec in enumerate(recomendaciones, 1):
                             with st.container():
                                 col1, col2 = st.columns([3, 1])
                                 with col1:
@@ -227,69 +207,63 @@ def main():
                                     st.markdown(f"**⭐ Rating:** {rec['rating']}/10")
                                     st.markdown(f"**📝 {rec['description'][:200]}...**")
                                 with col2:
-                                    similarity = rec['similarity_score']
-                                    st.markdown(f'<div class="similarity-badge">Similitud: {similarity}%</div>', unsafe_allow_html=True)
-                                    
-                                    # Barra de progreso para similitud
-                                    st.progress(similarity / 100)
+                                    similitud = rec['puntuacion_similitud']
+                                    st.markdown(f'<div class="badge-similitud">Similitud: {similitud}%</div>', unsafe_allow_html=True)
+                                    st.progress(similitud / 100)
                                 
                                 st.markdown("---")
                     else:
-                        st.error(f"❌ No se encontró la película '{movie_input}'. Intenta con otro nombre.")
+                        st.error(f"❌ No se encontró la película '{entrada_pelicula}'. Intenta con otro nombre.")
                         st.info("💡 **Sugerencia**: Verifica la ortografía o intenta con el nombre en español")
             else:
                 st.warning("⚠️ Por favor, ingresa el nombre de una película")
     
-    # Página de Estadísticas
-    elif page == "📊 Estadísticas":
+    elif pagina == "📊 Estadísticas":
         st.header("📊 Estadísticas de la Base de Datos")
         
-        stats = recommender.get_movie_stats()
+        estadisticas = recomendador.obtener_estadisticas()
         
-        # Métricas principales
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("🎬 Total de Películas", stats['total_movies'])
+            st.metric("🎬 Total de Películas", estadisticas['total_peliculas'])
         with col2:
-            st.metric("⭐ Rating Promedio", f"{stats['avg_rating']}/10")
+            st.metric("⭐ Rating Promedio", f"{estadisticas['rating_promedio']}/10")
         with col3:
-            st.metric("🏆 Mejor Rating", f"{stats['max_rating']}/10")
+            st.metric("🏆 Mejor Rating", f"{estadisticas['rating_maximo']}/10")
         with col4:
-            st.metric("📅 Rango de Años", stats['year_range'])
+            st.metric("📅 Rango de Años", estadisticas['rango_anios'])
         
         st.markdown("---")
         
-        # Gráficos
         col1, col2 = st.columns(2)
         
         with col1:
             st.subheader("🎭 Top 5 Géneros")
-            genres_df = pd.DataFrame(list(stats['top_genres'].items()), columns=['Género', 'Cantidad'])
-            fig_genres = px.bar(
-                genres_df, 
+            df_generos = pd.DataFrame(list(estadisticas['top_generos'].items()), columns=['Género', 'Cantidad'])
+            fig_generos = px.bar(
+                df_generos, 
                 x='Género', 
                 y='Cantidad',
                 color='Cantidad',
                 color_continuous_scale='viridis'
             )
-            fig_genres.update_layout(showlegend=False)
-            st.plotly_chart(fig_genres, use_container_width=True)
+            fig_generos.update_layout(showlegend=False)
+            st.plotly_chart(fig_generos, use_container_width=True)
         
         with col2:
             st.subheader("🎬 Top 5 Directores")
-            directors_df = pd.DataFrame(list(stats['top_directors'].items()), columns=['Director', 'Películas'])
-            fig_directors = px.pie(
-                directors_df,
+            df_directores = pd.DataFrame(list(estadisticas['top_directores'].items()), columns=['Director', 'Películas'])
+            fig_directores = px.pie(
+                df_directores,
                 values='Películas',
                 names='Director',
                 color_discrete_sequence=px.colors.sequential.Viridis
             )
-            st.plotly_chart(fig_directors, use_container_width=True)
+            st.plotly_chart(fig_directores, use_container_width=True)
         
-        # Distribución de ratings
         st.subheader("⭐ Distribución de Ratings")
         fig_ratings = px.histogram(
-            recommender.df,
+            recomendador.df,
             x='rating',
             nbins=20,
             labels={'rating': 'Rating', 'count': 'Cantidad de Películas'},
@@ -298,144 +272,140 @@ def main():
         fig_ratings.update_layout(showlegend=False)
         st.plotly_chart(fig_ratings, use_container_width=True)
         
-        # Películas por año
         st.subheader("📅 Películas por Año")
-        year_counts = recommender.df['year'].value_counts().sort_index()
-        fig_years = px.line(
-            x=year_counts.index,
-            y=year_counts.values,
+        conteos_anio = recomendador.df['year'].value_counts().sort_index()
+        fig_anios = px.line(
+            x=conteos_anio.index,
+            y=conteos_anio.values,
             labels={'x': 'Año', 'y': 'Cantidad de Películas'},
             markers=True
         )
-        fig_years.update_traces(line_color='#764ba2', marker_color='#667eea')
-        st.plotly_chart(fig_years, use_container_width=True)
+        fig_anios.update_traces(line_color='#764ba2', marker_color='#667eea')
+        st.plotly_chart(fig_anios, use_container_width=True)
     
-    # Búsqueda Avanzada
-    elif page == "🔍 Búsqueda Avanzada":
+    elif pagina == "🔍 Búsqueda Avanzada":
         st.header("🔍 Búsqueda Avanzada")
         
-        search_type = st.radio(
+        tipo_busqueda = st.radio(
             "Buscar por:",
             ["🎭 Género", "🎬 Director", "📅 Año", "⭐ Rating"]
         )
         
-        if search_type == "🎭 Género":
-            all_genres = set()
-            for genres in recommender.df['genre'].dropna():
-                all_genres.update(genres.split('/'))
-            selected_genre = st.selectbox("Selecciona un género:", sorted(all_genres))
+        if tipo_busqueda == "🎭 Género":
+            todos_generos = set()
+            for generos in recomendador.df['genre'].dropna():
+                todos_generos.update(generos.split('/'))
+            genero_seleccionado = st.selectbox("Selecciona un género:", sorted(todos_generos))
             
             if st.button("🔍 Buscar"):
-                results = recommender.get_movies_by_genre(selected_genre)
-                st.success(f"✅ Se encontraron {len(results)} películas")
+                resultados = recomendador.obtener_peliculas_por_genero(genero_seleccionado)
+                st.success(f"✅ Se encontraron {len(resultados)} películas")
                 
-                for idx, movie in results.iterrows():
-                    with st.expander(f"🎬 {movie['title']} ({movie['year']}) - ⭐ {movie['rating']}/10"):
-                        st.write(f"**Director:** {movie['director']}")
-                        st.write(f"**Género:** {movie['genre']}")
-                        st.write(f"**Sinopsis:** {movie['description']}")
+                for idx, pelicula in resultados.iterrows():
+                    with st.expander(f"🎬 {pelicula['title']} ({pelicula['year']}) - ⭐ {pelicula['rating']}/10"):
+                        st.write(f"**Director:** {pelicula['director']}")
+                        st.write(f"**Género:** {pelicula['genre']}")
+                        st.write(f"**Sinopsis:** {pelicula['description']}")
         
-        elif search_type == "🎬 Director":
-            all_directors = sorted(recommender.df['director'].dropna().unique())
-            selected_director = st.selectbox("Selecciona un director:", all_directors)
+        elif tipo_busqueda == "🎬 Director":
+            todos_directores = sorted(recomendador.df['director'].dropna().unique())
+            director_seleccionado = st.selectbox("Selecciona un director:", todos_directores)
             
             if st.button("🔍 Buscar"):
-                results = recommender.get_movies_by_director(selected_director)
-                st.success(f"✅ Se encontraron {len(results)} películas")
+                resultados = recomendador.obtener_peliculas_por_director(director_seleccionado)
+                st.success(f"✅ Se encontraron {len(resultados)} películas")
                 
-                for idx, movie in results.iterrows():
-                    with st.expander(f"🎬 {movie['title']} ({movie['year']}) - ⭐ {movie['rating']}/10"):
-                        st.write(f"**Género:** {movie['genre']}")
-                        st.write(f"**Sinopsis:** {movie['description']}")
+                for idx, pelicula in resultados.iterrows():
+                    with st.expander(f"🎬 {pelicula['title']} ({pelicula['year']}) - ⭐ {pelicula['rating']}/10"):
+                        st.write(f"**Género:** {pelicula['genre']}")
+                        st.write(f"**Sinopsis:** {pelicula['description']}")
         
-        elif search_type == "📅 Año":
-            min_year = int(recommender.df['year'].min())
-            max_year = int(recommender.df['year'].max())
-            year_range = st.slider("Rango de años:", min_year, max_year, (min_year, max_year))
+        elif tipo_busqueda == "📅 Año":
+            anio_min = int(recomendador.df['year'].min())
+            anio_max = int(recomendador.df['year'].max())
+            rango_anios = st.slider("Rango de años:", anio_min, anio_max, (anio_min, anio_max))
             
             if st.button("🔍 Buscar"):
-                results = recommender.df[
-                    (recommender.df['year'] >= year_range[0]) & 
-                    (recommender.df['year'] <= year_range[1])
+                resultados = recomendador.df[
+                    (recomendador.df['year'] >= rango_anios[0]) & 
+                    (recomendador.df['year'] <= rango_anios[1])
                 ]
-                st.success(f"✅ Se encontraron {len(results)} películas")
+                st.success(f"✅ Se encontraron {len(resultados)} películas")
                 
-                results_sorted = results.sort_values('rating', ascending=False)
-                for idx, movie in results_sorted.iterrows():
-                    with st.expander(f"🎬 {movie['title']} ({movie['year']}) - ⭐ {movie['rating']}/10"):
-                        st.write(f"**Director:** {movie['director']}")
-                        st.write(f"**Género:** {movie['genre']}")
+                resultados_ordenados = resultados.sort_values('rating', ascending=False)
+                for idx, pelicula in resultados_ordenados.iterrows():
+                    with st.expander(f"🎬 {pelicula['title']} ({pelicula['year']}) - ⭐ {pelicula['rating']}/10"):
+                        st.write(f"**Director:** {pelicula['director']}")
+                        st.write(f"**Género:** {pelicula['genre']}")
         
-        elif search_type == "⭐ Rating":
-            min_rating = float(recommender.df['rating'].min())
-            max_rating = float(recommender.df['rating'].max())
-            rating_range = st.slider("Rango de rating:", min_rating, max_rating, (7.0, max_rating), 0.1)
+        elif tipo_busqueda == "⭐ Rating":
+            rating_min = float(recomendador.df['rating'].min())
+            rating_max = float(recomendador.df['rating'].max())
+            rango_rating = st.slider("Rango de rating:", rating_min, rating_max, (7.0, rating_max), 0.1)
             
             if st.button("🔍 Buscar"):
-                results = recommender.df[
-                    (recommender.df['rating'] >= rating_range[0]) & 
-                    (recommender.df['rating'] <= rating_range[1])
+                resultados = recomendador.df[
+                    (recomendador.df['rating'] >= rango_rating[0]) & 
+                    (recomendador.df['rating'] <= rango_rating[1])
                 ]
-                st.success(f"✅ Se encontraron {len(results)} películas")
+                st.success(f"✅ Se encontraron {len(resultados)} películas")
                 
-                results_sorted = results.sort_values('rating', ascending=False)
-                for idx, movie in results_sorted.iterrows():
-                    with st.expander(f"🎬 {movie['title']} ({movie['year']}) - ⭐ {movie['rating']}/10"):
-                        st.write(f"**Director:** {movie['director']}")
-                        st.write(f"**Género:** {movie['genre']}")
+                resultados_ordenados = resultados.sort_values('rating', ascending=False)
+                for idx, pelicula in resultados_ordenados.iterrows():
+                    with st.expander(f"🎬 {pelicula['title']} ({pelicula['year']}) - ⭐ {pelicula['rating']}/10"):
+                        st.write(f"**Director:** {pelicula['director']}")
+                        st.write(f"**Género:** {pelicula['genre']}")
     
-    # Comparar Películas
-    elif page == "⚖️ Comparar Películas":
+    elif pagina == "⚖️ Comparar Películas":
         st.header("⚖️ Comparar Películas")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            movie1 = st.text_input("🎬 Película 1:", placeholder="Ej: El Padrino")
+            pelicula1 = st.text_input("🎬 Película 1:", placeholder="Ej: El Padrino")
         
         with col2:
-            movie2 = st.text_input("🎬 Película 2:", placeholder="Ej: Goodfellas")
+            pelicula2 = st.text_input("🎬 Película 2:", placeholder="Ej: Goodfellas")
         
         if st.button("⚖️ Comparar", type="primary", use_container_width=True):
-            if movie1 and movie2:
+            if pelicula1 and pelicula2:
                 with st.spinner("🔄 Comparando películas..."):
-                    result = recommender.compare_movies(movie1, movie2)
+                    resultado = recomendador.comparar_peliculas(pelicula1, pelicula2)
                     
-                    if result and result[0] and result[1]:
-                        movie1_data, movie2_data, comparison = result
+                    if resultado and resultado[0] and resultado[1]:
+                        datos_pelicula1, datos_pelicula2, comparacion = resultado
                         
                         st.success("✅ Comparación realizada")
                         
-                        # Mostrar comparación lado a lado
                         col1, col2 = st.columns(2)
                         
                         with col1:
-                            st.markdown(f"### 🎬 {movie1_data['title']}")
-                            st.metric("⭐ Rating", f"{movie1_data['rating']}/10")
-                            st.write(f"**Año:** {movie1_data['year']}")
-                            st.write(f"**Director:** {movie1_data['director']}")
-                            st.write(f"**Género:** {movie1_data['genre']}")
-                            st.write(f"**País:** {movie1_data['country']}")
+                            st.markdown(f"### 🎬 {datos_pelicula1['title']}")
+                            st.metric("⭐ Rating", f"{datos_pelicula1['rating']}/10")
+                            st.write(f"**Año:** {datos_pelicula1['year']}")
+                            st.write(f"**Director:** {datos_pelicula1['director']}")
+                            st.write(f"**Género:** {datos_pelicula1['genre']}")
+                            st.write(f"**País:** {datos_pelicula1['country']}")
                         
                         with col2:
-                            st.markdown(f"### 🎬 {movie2_data['title']}")
-                            st.metric("⭐ Rating", f"{movie2_data['rating']}/10")
-                            st.write(f"**Año:** {movie2_data['year']}")
-                            st.write(f"**Director:** {movie2_data['director']}")
-                            st.write(f"**Género:** {movie2_data['genre']}")
-                            st.write(f"**País:** {movie2_data['country']}")
+                            st.markdown(f"### 🎬 {datos_pelicula2['title']}")
+                            st.metric("⭐ Rating", f"{datos_pelicula2['rating']}/10")
+                            st.write(f"**Año:** {datos_pelicula2['year']}")
+                            st.write(f"**Director:** {datos_pelicula2['director']}")
+                            st.write(f"**Género:** {datos_pelicula2['genre']}")
+                            st.write(f"**País:** {datos_pelicula2['country']}")
                         
                         st.markdown("---")
                         st.subheader("📊 Análisis de Similitud")
                         
                         col1, col2, col3 = st.columns(3)
                         with col1:
-                            st.metric("🎯 Similitud", f"{comparison['similarity']}%")
-                            st.progress(comparison['similarity'] / 100)
+                            st.metric("🎯 Similitud", f"{comparacion['similitud']}%")
+                            st.progress(comparacion['similitud'] / 100)
                         with col2:
-                            st.metric("⭐ Diferencia de Rating", f"{comparison['rating_diff']}")
+                            st.metric("⭐ Diferencia de Rating", f"{comparacion['diferencia_rating']}")
                         with col3:
-                            st.metric("📅 Diferencia de Años", f"{comparison['year_diff']} años")
+                            st.metric("📅 Diferencia de Años", f"{comparacion['diferencia_anios']} años")
                     else:
                         st.error("❌ No se pudieron encontrar una o ambas películas")
             else:
@@ -443,4 +413,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

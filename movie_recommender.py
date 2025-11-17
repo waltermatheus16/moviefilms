@@ -2,11 +2,8 @@ import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from textblob import TextBlob
-import re
 import nltk
 
-# Descargar datos necesarios para TextBlob (solo si no están disponibles)
 try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
@@ -17,141 +14,103 @@ try:
 except LookupError:
     nltk.download('brown', quiet=True)
 
-class MovieRecommender:
-    def __init__(self, csv_path):
-        """Inicializa el recomendador con la base de datos de películas"""
-        self.df = pd.read_csv(csv_path)
-        self.vectorizer = None
-        self.similarity_matrix = None
-        self._prepare_data()
-        self._build_similarity_matrix()
+class RecomendadorPeliculas:
+    def __init__(self, ruta_csv):
+        self.df = pd.read_csv(ruta_csv)
+        self.vectorizador = None
+        self.matriz_similitud = None
+        self._preparar_datos()
+        self._construir_matriz_similitud()
     
-    def _prepare_data(self):
-        """Prepara los datos combinando características para el análisis"""
-        # Combinar características relevantes para la recomendación
-        self.df['combined_features'] = (
+    def _preparar_datos(self):
+        self.df['caracteristicas_combinadas'] = (
             self.df['genre'].fillna('') + ' ' +
             self.df['director'].fillna('') + ' ' +
             self.df['cast'].fillna('') + ' ' +
             self.df['description'].fillna('')
         )
-        
-        # Normalizar títulos para búsqueda
-        self.df['title_lower'] = self.df['title'].str.lower()
+        self.df['titulo_minusculas'] = self.df['title'].str.lower()
     
-    def _build_similarity_matrix(self):
-        """Construye la matriz de similitud usando TF-IDF"""
-        self.vectorizer = TfidfVectorizer(stop_words='english', max_features=5000)
-        tfidf_matrix = self.vectorizer.fit_transform(self.df['combined_features'])
-        self.similarity_matrix = cosine_similarity(tfidf_matrix, tfidf_matrix)
+    def _construir_matriz_similitud(self):
+        self.vectorizador = TfidfVectorizer(stop_words='english', max_features=5000)
+        matriz_tfidf = self.vectorizador.fit_transform(self.df['caracteristicas_combinadas'])
+        self.matriz_similitud = cosine_similarity(matriz_tfidf, matriz_tfidf)
     
-    def find_movie(self, movie_title):
-        """Encuentra una película por título (búsqueda flexible)"""
-        movie_title_lower = movie_title.lower().strip()
+    def buscar_pelicula(self, titulo_pelicula):
+        titulo_minusculas = titulo_pelicula.lower().strip()
         
-        # Búsqueda exacta
-        exact_match = self.df[self.df['title_lower'] == movie_title_lower]
-        if not exact_match.empty:
-            return exact_match.index[0]
+        coincidencia_exacta = self.df[self.df['titulo_minusculas'] == titulo_minusculas]
+        if not coincidencia_exacta.empty:
+            return coincidencia_exacta.index[0]
         
-        # Búsqueda parcial
-        partial_match = self.df[self.df['title_lower'].str.contains(movie_title_lower, na=False)]
-        if not partial_match.empty:
-            return partial_match.index[0]
+        coincidencia_parcial = self.df[self.df['titulo_minusculas'].str.contains(titulo_minusculas, na=False)]
+        if not coincidencia_parcial.empty:
+            return coincidencia_parcial.index[0]
         
-        # Búsqueda por palabras clave
-        keywords = movie_title_lower.split()
-        for keyword in keywords:
-            keyword_match = self.df[self.df['title_lower'].str.contains(keyword, na=False)]
-            if not keyword_match.empty:
-                return keyword_match.index[0]
+        palabras_clave = titulo_minusculas.split()
+        for palabra in palabras_clave:
+            coincidencia_palabra = self.df[self.df['titulo_minusculas'].str.contains(palabra, na=False)]
+            if not coincidencia_palabra.empty:
+                return coincidencia_palabra.index[0]
         
         return None
     
-    def recommend_movies(self, movie_title, n_recommendations=5):
-        """Recomienda películas similares basadas en el título dado"""
-        movie_idx = self.find_movie(movie_title)
+    def recomendar_peliculas(self, titulo_pelicula, num_recomendaciones=5):
+        indice_pelicula = self.buscar_pelicula(titulo_pelicula)
         
-        if movie_idx is None:
+        if indice_pelicula is None:
             return None, None
         
-        movie = self.df.iloc[movie_idx]
+        pelicula = self.df.iloc[indice_pelicula]
         
-        # Obtener similitudes
-        similarity_scores = list(enumerate(self.similarity_matrix[movie_idx]))
-        similarity_scores = sorted(similarity_scores, key=lambda x: x[1], reverse=True)
+        puntuaciones_similitud = list(enumerate(self.matriz_similitud[indice_pelicula]))
+        puntuaciones_similitud = sorted(puntuaciones_similitud, key=lambda x: x[1], reverse=True)
         
-        # Obtener las top N recomendaciones (excluyendo la película misma)
-        top_movies = similarity_scores[1:n_recommendations + 1]
+        peliculas_top = puntuaciones_similitud[1:num_recomendaciones + 1]
         
-        recommendations = []
-        for idx, score in top_movies:
-            rec_movie = self.df.iloc[idx].to_dict()
-            rec_movie['similarity_score'] = round(score * 100, 2)
-            recommendations.append(rec_movie)
+        recomendaciones = []
+        for indice, puntuacion in peliculas_top:
+            pelicula_rec = self.df.iloc[indice].to_dict()
+            pelicula_rec['puntuacion_similitud'] = round(puntuacion * 100, 2)
+            recomendaciones.append(pelicula_rec)
         
-        return movie.to_dict(), recommendations
+        return pelicula.to_dict(), recomendaciones
     
-    def analyze_sentiment(self, text):
-        """Analiza el sentimiento de un texto"""
-        blob = TextBlob(text)
-        polarity = blob.sentiment.polarity  # -1 a 1
-        subjectivity = blob.sentiment.subjectivity  # 0 a 1
-        
-        if polarity > 0.1:
-            sentiment = "Positivo"
-        elif polarity < -0.1:
-            sentiment = "Negativo"
-        else:
-            sentiment = "Neutral"
-        
-        return {
-            'sentiment': sentiment,
-            'polarity': round(polarity, 3),
-            'subjectivity': round(subjectivity, 3)
+    def obtener_estadisticas(self):
+        estadisticas = {
+            'total_peliculas': len(self.df),
+            'rating_promedio': round(self.df['rating'].mean(), 2),
+            'rating_maximo': self.df['rating'].max(),
+            'rating_minimo': self.df['rating'].min(),
+            'rango_anios': f"{self.df['year'].min()} - {self.df['year'].max()}",
+            'top_generos': self.df['genre'].str.split('/').explode().value_counts().head(5).to_dict(),
+            'top_directores': self.df['director'].value_counts().head(5).to_dict(),
+            'top_paises': self.df['country'].value_counts().head(5).to_dict()
         }
+        return estadisticas
     
-    def get_movie_stats(self):
-        """Obtiene estadísticas generales de la base de datos"""
-        stats = {
-            'total_movies': len(self.df),
-            'avg_rating': round(self.df['rating'].mean(), 2),
-            'max_rating': self.df['rating'].max(),
-            'min_rating': self.df['rating'].min(),
-            'year_range': f"{self.df['year'].min()} - {self.df['year'].max()}",
-            'top_genres': self.df['genre'].str.split('/').explode().value_counts().head(5).to_dict(),
-            'top_directors': self.df['director'].value_counts().head(5).to_dict(),
-            'top_countries': self.df['country'].value_counts().head(5).to_dict()
-        }
-        return stats
+    def obtener_peliculas_por_genero(self, genero):
+        return self.df[self.df['genre'].str.contains(genero, case=False, na=False)]
     
-    def get_movies_by_genre(self, genre):
-        """Obtiene películas por género"""
-        return self.df[self.df['genre'].str.contains(genre, case=False, na=False)]
-    
-    def get_movies_by_director(self, director):
-        """Obtiene películas por director"""
+    def obtener_peliculas_por_director(self, director):
         return self.df[self.df['director'].str.contains(director, case=False, na=False)]
     
-    def compare_movies(self, movie1_title, movie2_title):
-        """Compara dos películas"""
-        idx1 = self.find_movie(movie1_title)
-        idx2 = self.find_movie(movie2_title)
+    def comparar_peliculas(self, titulo_pelicula1, titulo_pelicula2):
+        indice1 = self.buscar_pelicula(titulo_pelicula1)
+        indice2 = self.buscar_pelicula(titulo_pelicula2)
         
-        if idx1 is None or idx2 is None:
+        if indice1 is None or indice2 is None:
             return None, None
         
-        movie1 = self.df.iloc[idx1].to_dict()
-        movie2 = self.df.iloc[idx2].to_dict()
+        pelicula1 = self.df.iloc[indice1].to_dict()
+        pelicula2 = self.df.iloc[indice2].to_dict()
         
-        # Calcular similitud
-        similarity = self.similarity_matrix[idx1][idx2]
+        similitud = self.matriz_similitud[indice1][indice2]
         
-        comparison = {
-            'similarity': round(similarity * 100, 2),
-            'rating_diff': round(abs(movie1['rating'] - movie2['rating']), 2),
-            'year_diff': abs(movie1['year'] - movie2['year'])
+        comparacion = {
+            'similitud': round(similitud * 100, 2),
+            'diferencia_rating': round(abs(pelicula1['rating'] - pelicula2['rating']), 2),
+            'diferencia_anios': abs(pelicula1['year'] - pelicula2['year'])
         }
         
-        return movie1, movie2, comparison
-
+        return pelicula1, pelicula2, comparacion
